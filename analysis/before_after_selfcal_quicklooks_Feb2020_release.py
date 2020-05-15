@@ -19,9 +19,11 @@ os.chdir(basepath)
 import imstats
 
 
-tbl = imstats.savestats()
+tbl = imstats.savestats(basepath=basepath)
 
 #tbl = Table.read('/bio/web/secure/adamginsburg/ALMA-IMF/Feb2020/metadata.ecsv')
+tbl.add_column(Column(name='casaversion_pre', data=['             ']*len(tbl)))
+tbl.add_column(Column(name='casaversion_post', data=['             ']*len(tbl)))
 tbl.add_column(Column(name='scMaxDiff', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='scMinDiff', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='scMADDiff', data=[np.nan]*len(tbl)))
@@ -29,6 +31,8 @@ tbl.add_column(Column(name='scMeanDiff', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='scMedianDiff', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='dr_pre', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='dr_post', data=[np.nan]*len(tbl)))
+tbl.add_column(Column(name='min_pre', data=[np.nan]*len(tbl)))
+tbl.add_column(Column(name='min_post', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='max_pre', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='max_post', data=[np.nan]*len(tbl)))
 tbl.add_column(Column(name='mad_pre', data=[np.nan]*len(tbl)))
@@ -42,7 +46,7 @@ for field in "G008.67 G337.92 W43-MM3 G328.25 G351.77 G012.80 G327.29 W43-MM1 G0
 
             # for not all-in-the-same-place stuff
             fns = [x for x in glob.glob(f"{field}/B{band}/{imtype}/{field}*_B{band}_*selfcal[0-9]*.image.tt0*.fits")
-                   if 'robust0' in x]
+                   if 'robust0_' in x]
 
             config = '7M12M' if '7m' in imtype else '12M'
 
@@ -79,7 +83,7 @@ for field in "G008.67 G337.92 W43-MM3 G328.25 G351.77 G012.80 G327.29 W43-MM1 G0
                     raise
                 except Exception as ex:
                     log.error(f"Failure for pre={preselfcal_name} post={postselfcal_name}")
-                    log.error((field, band, config, ex))
+                    log.error((field, band, config, imtype, ex))
                     continue
 
                 matchrow = ((tbl['region'] == field) &
@@ -95,14 +99,18 @@ for field in "G008.67 G337.92 W43-MM3 G328.25 G351.77 G012.80 G327.29 W43-MM1 G0
                 tbl['scMedianDiff'][matchrow] = diffstats['median']
                 tbl['dr_pre'][matchrow] = diffstats['dr_pre']
                 tbl['dr_post'][matchrow] = diffstats['dr_post']
+                tbl['min_pre'][matchrow] = diffstats['min_pre']
+                tbl['min_post'][matchrow] = diffstats['min_post']
                 tbl['max_pre'][matchrow] = diffstats['max_pre']
                 tbl['max_post'][matchrow] = diffstats['max_post']
                 tbl['mad_pre'][matchrow] = diffstats['mad_pre']
                 tbl['mad_post'][matchrow] = diffstats['mad_post']
                 tbl['dr_improvement'][matchrow] = diffstats['dr_post']/diffstats['dr_pre']
+                tbl['casaversion_pre'][matchrow] = fits.getheader(preselfcal_name)['ORIGIN']
+                tbl['casaversion_post'][matchrow] = fits.getheader(postselfcal_name)['ORIGIN']
 
                 print(fns)
-                print(f"{field}_B{band}:{last_selfcal}")
+                print(f"{field}_B{band}:{last_selfcal}: matched {matchrow.sum()} rows")
             else:
                 print(f"No hits for {field}_B{band}_{config}")
 
